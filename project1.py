@@ -257,7 +257,7 @@ def weights_init(m):
 
 def train_test(model, train, test, train_classes, test_classes,
             train_target, test_target, mini_batch_size, criterion,
-             nb_epochs, eta = 1e-2, momentum = 0, optimizer_name = 'SGD', repeats = 2):
+             nb_epochs, eta = 1e-2, momentum = 0.9, optimizer_name = 'SGD', repeats = 25):
     all_results = []
 
     N =  int(len(train)/2)

@@ -1,4 +1,5 @@
 import dlc_practical_prologue as prologue
+import json
 from torch import  nn
 
 from project1 import *
@@ -30,6 +31,8 @@ def main():
                                     test_classes, train_target, test_target, 100,
                                     criterion, epoch, optimizer_name = optimizer)
 
+    with open('comparison_models.json', 'w') as json_file:
+        json.dump(all_results[0], json_file)
     print(all_results)
 
 if __name__ == "__main__":

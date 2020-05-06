@@ -1,0 +1,1 @@
+{"Model": "Residual network inspired from BasicCNN_bn, dropout = 0", "Optimizer": "SGD", "Epochs": 1, "Eta": 0.01, "Train Accuracy Mean": 0.8289999961853027, "Test Accuracy Mean": 0.8194999694824219, "Train Accuracy Std": 0.01272792648524046, "Test Accuracy Std": 0.016263416036963463, "Digit acc table": 
