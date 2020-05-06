@@ -26,16 +26,16 @@ class Linear(Module):
     def __init__(self, in_features, out_features, bias = True):
         self.in_features = in_features
         self.out_features = out_features
-        init_bound = 1/math.sqrt(self.in_features)
+        init_bound = math.sqrt(6)/math.sqrt(self.in_features + self.out_features)
         self.weight = torch.distributions.uniform.Uniform(torch.tensor([-init_bound]), torch.tensor([init_bound])).sample(torch.Size([out_features, in_features]))
         if bias:
             self.bias = torch.distributions.uniform.Uniform(torch.tensor([-init_bound]), torch.tensor([init_bound])).sample(torch.Size([out_features]))
         else:
             self.bias = torch.zeros((out_features))
+
     def forward (self, input):
-        output = input@self.weight
-        if bias != None:
-            output += bias
+        return input@self.weight + self.bias
+
     def backward (self, *gradwrtoutput):
         return
 

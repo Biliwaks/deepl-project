@@ -5,6 +5,7 @@ from torch import  nn
 from project1 import *
 
 def main():
+    print('Project 1')
     train_input, train_target, train_classes, test_input, test_target, test_classes = prologue.generate_pair_sets(1000)
 
     train = torch.cat(( train_input[:, 0, :, :], train_input[:, 1, :, :]), 0)
@@ -21,7 +22,6 @@ def main():
 
     all_results = []
 
-
     for model in models:
         for optimizer in optimizers:
             for criterion in criterions:
@@ -34,6 +34,13 @@ def main():
     with open('comparison_models.json', 'w') as json_file:
         json.dump(all_results[0], json_file)
     print(all_results)
+    print('Project 1 done')
+
+def generate_input(size):
+    input = torch.distributions.uniform.Uniform(torch.tensor([0.0, 0.0]), torch.tensor([1.0, 1.0])).sample(torch.Size([size]))
+    target = input.sub(torch.tensor([0.5, 0.5])).pow(2).sum(1).sub(1/math.sqrt(2*math.pi)).sign().add(1).div(2).long()
+    return input, target
+
 
 if __name__ == "__main__":
     main()
