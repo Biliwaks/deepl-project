@@ -1,6 +1,7 @@
 import dlc_practical_prologue as prologue
 import json
 from torch import  nn
+import torch
 
 from project1 import *
 
@@ -37,8 +38,8 @@ def main():
     print('Project 1 done')
 
 def generate_input(size):
-    input = torch.distributions.uniform.Uniform(torch.tensor([0.0, 0.0]), torch.tensor([1.0, 1.0])).sample(torch.Size([size]))
-    target = input.sub(torch.tensor([0.5, 0.5])).pow(2).sum(1).sub(1/math.sqrt(2*math.pi)).sign().add(1).div(2).long()
+    input = torch.Tensor(size, 2).uniform_(0, 1)
+    target = input.sub(torch.tensor([0.5, 0.5])).pow(2).sum(1).sub(1 / (2*math.pi)).sign().add(1).div(2).long()
     return input, target
 
 

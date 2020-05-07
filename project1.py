@@ -216,7 +216,7 @@ def train_model(model, train, train_classes, test, test_classes,
             output = model(train.narrow(0, batch, mini_batch_size))
             _, predicted_classes = output.max(1)
             loss = criterion(output, train_classes.narrow(0, batch, mini_batch_size))
-            model.zero_grad()
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
