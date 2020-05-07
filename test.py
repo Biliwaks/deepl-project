@@ -4,6 +4,7 @@ from torch import  nn
 import torch
 
 from project1 import *
+from project2 import *
 
 def main():
     print('Project 1')
