@@ -122,6 +122,7 @@ class LossMSE():
 
 
 
+
 def train_model(model, train, train_target, test, test_target,
                 mini_batch_size, eta, nb_epochs):
 

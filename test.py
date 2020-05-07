@@ -43,10 +43,13 @@ def main():
     train, train_target = generate_data()
     test, test_target = generate_data()
 
-    train_model(Project2Net(), input, target, test, test_target, 100, 1e-1, 25)
+    # Requirements given by project2
+    input_units = 2
+    output_units = 2
+    nb_hidden_units = 25
 
-
-
+    project2Net = Sequential(Linear(input_units, nb_hidden_units), Linear(nb_hidden_units, nb_hidden_units), Linear(nb_hidden_units, input_units))
+    train_acc_comparison, test_acc_comparison, train_loss, test_loss = train_model(project2Net, input, target, test, test_target, 100, 1e-1, 25)
 
 
 

@@ -201,8 +201,8 @@ optimizer_methods = {
 def train_model(model, train, train_classes, test, test_classes,
                 mini_batch_size, eta, criterion, nb_epochs, momentum, optimizer_name):
 
-    train_comparison = torch.zeros(nb_epochs)
-    test_comparison = torch.zeros(nb_epochs)
+    train_accuracy = torch.zeros(nb_epochs)
+    test_accuracy = torch.zeros(nb_epochs)
     train_loss = torch.zeros(nb_epochs)
     test_loss = torch.zeros(nb_epochs)
     N_train = train.size(0)
@@ -211,7 +211,7 @@ def train_model(model, train, train_classes, test, test_classes,
     optimizer = optimizer_methods[optimizer_name](model.parameters, eta, momentum)
 
     for epoch in range(nb_epochs):
-        train_accuracy = 0
+        correct_train_digits = 0
         for batch in range(0, N_train, mini_batch_size):
             output = model(train.narrow(0, batch, mini_batch_size))
             _, predicted_classes = output.max(1)
@@ -220,7 +220,7 @@ def train_model(model, train, train_classes, test, test_classes,
             loss.backward()
             optimizer.step()
 
-            train_accuracy += (train_classes[batch:batch+mini_batch_size] == predicted_classes).sum().item()
+            correct_train_digits += (train_classes[batch:batch+mini_batch_size] == predicted_classes).sum().item()
 
         train_loss[epoch] = loss.item()
         with torch.no_grad():
@@ -228,14 +228,14 @@ def train_model(model, train, train_classes, test, test_classes,
             loss = criterion(output, test_classes)
             test_loss[epoch] = loss.item()
             _, predicted_classes = output.max(1)
-            test_accuracy = (test_classes == predicted_classes).sum().item()
+            correct_test_digits = (test_classes == predicted_classes).sum().item()
 
 
         # compute accuracy
-        train_comparison[epoch] = train_accuracy / N_train
-        test_comparison[epoch] = test_accuracy / N_test
+        train_accuracy[epoch] = correct_train_digits / N_train
+        test_accuracy[epoch] = correct_test_digits / N_test
 
-    return train_comparison, test_comparison, train_loss, test_loss
+    return train_accuracy, test_accuracy, train_loss, test_loss
 
 
 def compute_project_accuracy(model, input1, input2, target):
@@ -261,29 +261,29 @@ def train_test(model, train, test, train_classes, test_classes,
     all_results = []
 
     N =  int(len(train)/2)
-    train_acc = torch.zeros(repeats,1)
-    test_acc  = torch.zeros(repeats,1)
+    train_comparison = torch.zeros(repeats,1)
+    test_comparison  = torch.zeros(repeats,1)
 
     train_loss = torch.zeros(repeats, nb_epochs)
     test_loss = torch.zeros(repeats, nb_epochs)
 
-    train_comparison = torch.zeros(repeats, nb_epochs)
-    test_comparison = torch.zeros(repeats, nb_epochs)
+    train_acc = torch.zeros(repeats, nb_epochs)
+    test_acc = torch.zeros(repeats, nb_epochs)
 
 
     for i in range(repeats):
         model.apply(weights_init)
 
-        train_comparison[i], test_comparison[i], train_loss[i], test_loss[i] = train_model(model, train, train_classes,
+        train_acc[i], test_acc[i], train_loss[i], test_loss[i] = train_model(model, train, train_classes,
             test, test_classes, mini_batch_size, eta, criterion, nb_epochs, momentum,
             optimizer_name)
 
         # plot_accuracy(train_comparison[i], test_comparison[i], nb_epochs)
 
-        train_acc[i] = compute_project_accuracy(model, train[: N], train[N: ], train_target)
-        test_acc[i] = compute_project_accuracy(model, test[: N], test[N: ], test_target)
+        train_comparison[i] = compute_project_accuracy(model, train[: N], train[N: ], train_target)
+        test_comparison[i] = compute_project_accuracy(model, test[: N], test[N: ], test_target)
 
-    all_results.append({"Model": model.name, "Optimizer": optimizer_name , "Epochs": nb_epochs, "Eta": eta, "Train Accuracy Mean": train_acc.mean().item(),"Test Accuracy Mean": test_acc.mean().item(), "Train Accuracy Std":  train_acc.std().item(), "Test Accuracy Std": test_acc.std().item(), "Digit acc table":     train_comparison.mean(axis= 0)
-            , "test Digit Accuracy Table":     test_comparison.mean(axis= 0)})
+    all_results.append({"Model": model.name, "Optimizer": optimizer_name , "Epochs": nb_epochs, "Eta": eta, "Train Accuracy Mean": train_comparison.mean().item(),"Test Accuracy Mean": test_comparison.mean().item(), "Train Accuracy Std":  train_acc.std().item(), "Test Accuracy Std": test_acc.std().item(), "Digit acc table":     train_acc.mean(axis= 0)
+            , "test Digit Accuracy Table":     test_acc.mean(axis= 0)})
 
     return all_results
