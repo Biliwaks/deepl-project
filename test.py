@@ -35,12 +35,19 @@ def main():
     with open('comparison_models.json', 'w') as json_file:
         json.dump(all_results[0], json_file)
     print(all_results)
-    print('Project 1 done')
 
-def generate_input(size):
-    input = torch.Tensor(size, 2).uniform_(0, 1)
-    target = input.sub(torch.tensor([0.5, 0.5])).pow(2).sum(1).sub(1 / (2*math.pi)).sign().add(1).div(2).long()
-    return input, target
+    print('Project 1 done')
+    print('')
+
+    train, train_target = generate_data()
+    test, test_target = generate_data()
+
+    train_model(Project2Net(), input, target, test, test_target, 100, 1e-1, 25)
+
+
+
+
+
 
 
 if __name__ == "__main__":
