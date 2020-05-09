@@ -4,7 +4,7 @@ from torch import  nn
 import torch
 import os
 
-# il va falloir les importer séparement 
+# il va falloir les importer séparement
 from project1 import *
 from project2 import *
 
@@ -18,32 +18,31 @@ def main():
     train_classes = torch.cat((train_classes[:, 0], train_classes[:, 1]), 0)
     test_classes = torch.cat((test_classes[:, 0], test_classes[:, 1]), 0)
 
-    models = [ShallowFCNet(), DeepFCNet(), BasicCNN(), BasicCNN_bn(), LeNet4(), LeNet5(), ResNet()]
-    optimizers = ['SGD']
-    dropouts = [0, 0.25]
+    models = [ShallowFCNet(), DeepFCNet(), BasicCNN(), BasicCNN(dropout= 0.25), BasicCNN_bn(), BasicCNN_bn(dropout=0.25), LeNet4(), LeNet4(dropout=0.25), LeNet5(), LeNet5(dropout=0.25), ResNet(), ResNet(dropout = 0.25)]
+    optimizers = ['SGD', 'Adam']
     criterions = [nn.CrossEntropyLoss(), nn.MultiMarginLoss()]
-    epochs = [1]
+    epochs = [25, 50, 100]
+
 
     all_results = []
-    PATH =  os.path.dirname(os.path.abspath(__file__))
 
     for model in models:
         for optimizer in optimizers:
             for criterion in criterions:
-                for dropout in dropouts:
-                    for epoch in epochs:
-                        all_results = train_test(model, train, test, train_classes,
-                                    test_classes, train_target, test_target, 100,
-                                    criterion, epoch, optimizer_name = optimizer)
-
-                        torch.save(model.state_dict(), PATH)
+                for epoch in epochs:
+                    all_results.append(train_test(model, train, test, train_classes,
+                                test_classes, train_target, test_target, 100,
+                                criterion, epoch, optimizer_name = optimizer))
+                    model_name =  "{}_{}".format(model.name, criterion.__class__.__name__ )
+                    save_model_all(model, model_name, epoch)
+                    print("Model saved.")
 
     with open('comparison_models.json', 'w') as json_file:
-        json.dump(all_results[0], json_file)
-    print(all_results)
+        json.dump(all_results, json_file)
 
     print('Project 1 done')
-    print('')
+
+    print('Project 2')
 
 
     train, train_target = generate_data(1000)
@@ -51,6 +50,7 @@ def main():
 
     train_one_hot_target = one_hot_encoding(train_target)
     test_one_hot_target = one_hot_encoding(test_target)
+
 
     # Requirements given by project2
     input_units = 2
@@ -62,8 +62,11 @@ def main():
                              Linear(nb_hidden_units, nb_hidden_units), Tanh(),
                              Linear(nb_hidden_units, output_units))
 
-    train_model(model, train, train_one_hot_target, test, test_one_hot_target, 25, 1e-4, 100)
 
+    project2_results = train_and_evaluate(model, train, train_one_hot_target, test, test_one_hot_target, 25, 1e-4, 100)
+
+    with open('project2_results.json', 'w') as json_file:
+        json.dump(project2_results, json_file)
 
 
 

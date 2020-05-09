@@ -132,7 +132,7 @@ def normalize_data(x):
     mean, std =  x.mean(), x.std()
     x.sub_(mean).div_(std)
 
-def train_model(model, train, train_target, test, test_target,
+def train_and_evaluate(model, train, train_target, test, test_target,
                 mini_batch_size, eta, nb_epochs, normalize = True):
 
     train_accuracy = torch.zeros(nb_epochs)

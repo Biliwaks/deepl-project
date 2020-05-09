@@ -1,5 +1,6 @@
 import torch
 from torch import  nn
+import os
 from torch.nn import functional as F
 from torch import optim
 from torch import Tensor
@@ -287,3 +288,20 @@ def train_test(model, train, test, train_classes, test_classes,
             , "test Digit Accuracy Table":     test_acc.mean(axis= 0)})
 
     return all_results
+
+def save_model_all(model, model_name, epoch):
+    """
+    :param model:  nn model
+    :param save_dir: save model direction
+    :param model_name:  model name
+    :param epoch:  epoch
+    :return:  None
+    """
+    if not os.path.isdir("models/"):
+        os.makedirs("models/")
+    save_prefix = os.path.join("models/", model_name)
+    save_path = '{}_epoch_{}.pt'.format(save_prefix, epoch)
+    print("save all model to {}".format(save_path))
+    output = open(save_path, mode="wb")
+    torch.save(model.state_dict(), output)
+    output.close()
