@@ -178,7 +178,7 @@ def train_and_evaluate(model, train, train_target, test, test_target,
         train_accuracy[epoch] = nb_correct_classes_tr / N_train
         test_accuracy[epoch] = nb_correct_classes_te / N_test
 
-    return train_accuracy, test_accuracy, train_loss, test_loss
+    return {"train_accuracy" : train_accuracy.tolist(), "test_accuracy" : test_accuracy.tolist(), "train_loss" :train_loss.tolist(), "test_loss" : test_loss.tolist()}
 
 
 def generate_data(size):
