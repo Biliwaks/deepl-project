@@ -20,12 +20,9 @@ def main():
     test_classes = torch.cat((test_classes[:, 0], test_classes[:, 1]), 0)
 
     models = [ShallowFCNet(), DeepFCNet(), BasicCNN(), BasicCNN(dropout= 0.25), BasicCNN_bn(), BasicCNN_bn(dropout=0.25), LeNet4(), LeNet4(dropout=0.25), LeNet5(), LeNet5(dropout=0.25), ResNet(), ResNet(dropout = 0.25)]
-    models = [ShallowFCNet()]
     optimizers = ['SGD', 'Adam']
-    optimizers = ['SGD']
     criterions = [nn.CrossEntropyLoss(), nn.MultiMarginLoss()]
     epochs = [25, 50, 100]
-    epochs = [2]
 
     all_results = []
 
@@ -35,7 +32,7 @@ def main():
                 for epoch in epochs:
                     all_results.append(train_test(model, train, test, train_classes,
                                 test_classes, train_target, test_target, 100,
-                                criterion, epoch, optimizer_name = optimizer, weight_sharing = False))
+                                criterion, epoch, optimizer_name = optimizer))
                     model_name =  "{}_{}".format(model.name, criterion.__class__.__name__ )
                     save_model_all(model, model_name, epoch)
                     print("Model saved.")

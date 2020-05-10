@@ -323,7 +323,7 @@ def train_test(model, train, test, train_classes, test_classes,
             test_comparison[i] = compute_project_accuracy(model, test[: N], test[N: ], test_target)
 
         all_results.append({"Model": model.name, "Optimizer": optimizer_name , "Epochs": nb_epochs, "Eta": eta, "Train Accuracy Mean": train_comparison.mean().item(),"Test Accuracy Mean": test_comparison.mean().item(), "Train Accuracy Std":  train_acc.std().item(), "Test Accuracy Std": test_acc.std().item(), "Digit acc table":     train_acc.mean(axis= 0).tolist()
-                , "test Digit Accuracy Table": test_acc.mean(axis= 0).tolist()})
+                , "test Digit Accuracy Table": test_acc.mean(axis= 0).tolist(), 'train loss': train_loss.mean(axis = 0).tolist(), 'test loss': train_loss.mean(axis = 0).tolist()})
 
     else:
         train_loss2 = torch.zeros(repeats, nb_epochs)
@@ -356,11 +356,11 @@ def train_test(model, train, test, train_classes, test_classes,
 
         train_acc = (train_acc + train_acc2)/2
         test_acc = (test_acc + test_acc2)/2
+        train_loss = (train_loss + train_loss2)/2
+        test_loss = (test_loss + test_loss2)/2
+
         all_results.append({"Model": model.name + 'non weight sharing', "Optimizer": optimizer_name , "Epochs": nb_epochs, "Eta": eta, "Train Accuracy Mean": train_comparison.mean().item(),"Test Accuracy Mean": test_comparison.mean().item(), "Train Accuracy Std":  train_acc.std().item(), "Test Accuracy Std": test_acc.std().item(), "Digit acc table":     train_acc.mean(axis= 0).tolist()
-                , "test Digit Accuracy Table": test_acc.mean(axis= 0).tolist()})
-
-
-
+                , "test Digit Accuracy Table": test_acc.mean(axis= 0).tolist(), 'train loss': train_loss.mean(axis = 0).tolist(), 'test loss': train_loss.mean(axis = 0).tolist()})
 
     return all_results
 
