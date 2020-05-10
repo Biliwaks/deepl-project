@@ -348,8 +348,8 @@ def train_test(model, train, test, train_classes, test_classes,
             model_name2 =  "{}_{}".format(model.name + '_non weight_sharing_img2', criterion.__class__.__name__ )
             save_model_all(model, model_name2, nb_epochs)
 
-            model1 = load_saved_model(model, '{}_epoch_{}.pt'.format('models/' + model_name1, nb_epochs))
-            model2 = load_saved_model(model, '{}_epoch_{}.pt'.format('models/' + model_name2, nb_epochs))
+            model1 = load_saved_model(model, '{}_epoch_{}.pt'.format('models/' + model_name1, nb_epochs), True)
+            model2 = load_saved_model(model, '{}_epoch_{}.pt'.format('models/' + model_name2, nb_epochs), True)
 
             train_comparison[i] = compute_project_accuracy(model1, train[: N], train[N: ], train_target, model2)
             test_comparison[i] = compute_project_accuracy(model1, test[: N], test[N: ], test_target, model2)
@@ -364,7 +364,7 @@ def train_test(model, train, test, train_classes, test_classes,
 
     return all_results
 
-def save_model_all(model, model_name, epoch):
+def save_model_all(model, model_name, epoch, print_disabled = False):
     """
     :param model:  nn model
     :param save_dir: save model direction
@@ -376,7 +376,8 @@ def save_model_all(model, model_name, epoch):
         os.makedirs("models/")
     save_prefix = os.path.join("models/", model_name)
     save_path = '{}_epoch_{}.pt'.format(save_prefix, epoch)
-    print("save all model to {}".format(save_path))
+    if not print_disabled:
+        print("save all model to {}".format(save_path))
     output = open(save_path, mode="wb")
     torch.save(model.state_dict(), output)
     output.close()
