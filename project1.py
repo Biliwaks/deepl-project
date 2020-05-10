@@ -1,6 +1,5 @@
-import torch
+import torchimport torch
 from torch import  nn
-import os
 from torch.nn import functional as F
 from torch import optim
 from torch import Tensor
@@ -16,7 +15,7 @@ class ShallowFCNet(nn.Module):
         self.fc1 = nn.Linear(IMAGE_SIZE, 120)
         self.fc2 = nn.Linear(120, NUM_CLASSES)
         self.drop = nn.Dropout(dropout)
-        self.name = f"ShallowFCNet, dropout = {dropout}"
+        self.name = f"ShallowFCNet_dropout_{dropout}"
 
     def forward(self, x):
         x = F.relu(self.fc1(x.view(-1, IMAGE_SIZE)))
@@ -65,7 +64,7 @@ class BasicCNN(nn.Module):
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, NUM_CLASSES)
         self.drop = nn.Dropout(dropout)
-        self.name = f"BasicCNN(dropout = {dropout})"
+        self.name = f"BasicCNN(dropout_{dropout})"
 
     def forward(self, x):
         x = F.relu(self.conv1(x.view(-1, 1, 14, 14)))
@@ -91,7 +90,7 @@ class BasicCNN_bn(nn.Module):
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
         self.drop = nn.Dropout(dropout)
-        self.name = f"BasicCNN with batch normalization, dropout = {dropout}"
+        self.name = f"BasicCNN_bn_dropout_{dropout}"
 
     def forward(self, x):
         x = F.relu(self.conv1_bn(self.conv1(x.view(-1, 1, 14, 14))))
@@ -112,7 +111,7 @@ class LeNet4(nn.Module):
         self.fc1 = nn.Linear(16*5*5, 120)
         self.fc2 = nn.Linear(120, NUM_CLASSES)
         self.drop = nn.Dropout(dropout)
-        self.name = f"LeNet4, dropout = {dropout}"
+        self.name = f"LeNet4_dropout_{dropout}"
 
     def forward(self, x):
         x = self.conv1(x.view(-1, 1, 14, 14))
@@ -182,7 +181,7 @@ class ResNet(nn.Module):
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, NUM_CLASSES)
         self.drop = nn.Dropout(dropout)
-        self.name = f"Residual network inspired from BasicCNN_bn, dropout = {dropout}"
+        self.name = f"ResNet_dropout_{dropout}"
     def forward(self, x):
         x = F.relu(self.conv1_bn(self.conv1(x.view(-1, 1, 14, 14))))
         x = self.resblock(x)
