@@ -1,15 +1,16 @@
 import dlc_practical_prologue as prologue
 import json
-from torch import  nn
 import torch
 import os
+from torch import  nn
+from termcolor import colored
 
 # il va falloir les importer séparement
 from project1 import *
 from project2 import *
 
 def main():
-    print('Project 1')
+    print(colored('Project 1 running ...', 'cyan'))
     train_input, train_target, train_classes, test_input, test_target, test_classes = prologue.generate_pair_sets(1000)
 
     train = torch.cat(( train_input[:, 0, :, :], train_input[:, 1, :, :]), 0)
@@ -22,7 +23,6 @@ def main():
     optimizers = ['SGD', 'Adam']
     criterions = [nn.CrossEntropyLoss(), nn.MultiMarginLoss()]
     epochs = [25, 50, 100]
-
 
     all_results = []
 
@@ -40,9 +40,9 @@ def main():
     with open('comparison_models.json', 'w') as json_file:
         json.dump(all_results, json_file)
 
-    print('Project 1 done')
+    print(colored('Project 1 done', 'cyan'))
 
-    print('Project 2')
+    print(colored('Project 2 running', 'cyan'))
 
 
     train, train_target = generate_data(1000)
@@ -67,6 +67,8 @@ def main():
 
     with open('project2_results.json', 'w') as json_file:
         json.dump(project2_results, json_file)
+
+    print(colored('Project 2 done', 'cyan'))
 
 
 

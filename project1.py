@@ -63,7 +63,7 @@ class BasicCNN(nn.Module):
         self.conv3 = nn.Conv2d(16, 32, kernel_size=4)
         self.fc1 = nn.Linear(32*5*5, 120)
         self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+        self.fc3 = nn.Linear(84, NUM_CLASSES)
         self.drop = nn.Dropout(dropout)
         self.name = f"BasicCNN(dropout = {dropout})"
 
@@ -110,7 +110,7 @@ class LeNet4(nn.Module):
         self.conv1 = nn.Conv2d(1, 4, kernel_size=5, padding = 9)
         self.conv2 = nn.Conv2d(4, 16, kernel_size=5)
         self.fc1 = nn.Linear(16*5*5, 120)
-        self.fc2 = nn.Linear(120, 10)
+        self.fc2 = nn.Linear(120, NUM_CLASSES)
         self.drop = nn.Dropout(dropout)
         self.name = f"LeNet4, dropout = {dropout}"
 
@@ -133,7 +133,7 @@ class LeNet5(nn.Module):
         self.conv2 = nn.Conv2d(6, 16, kernel_size=5)
         self.fc1 = nn.Linear(16*5*5, 120)
         self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+        self.fc3 = nn.Linear(84, NUM_CLASSES)
         self.drop = nn.Dropout(dropout)
         self.name = f"LeNet45, dropout = {dropout}"
 
@@ -180,7 +180,7 @@ class ResNet(nn.Module):
         self.resblock = ResBlock(dropout)
         self.fc1 = nn.Linear(64*5*5, 120)
         self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+        self.fc3 = nn.Linear(84, NUM_CLASSES)
         self.drop = nn.Dropout(dropout)
         self.name = f"Residual network inspired from BasicCNN_bn, dropout = {dropout}"
     def forward(self, x):
@@ -192,6 +192,38 @@ class ResNet(nn.Module):
         x = self.drop(x)
         x = self.fc3(x)
         return x
+
+
+class BasicCNN_bn_non_weight_sharing(nn.Module):
+    def __init__(self, dropout = 0):
+        super(BasicCNN_bn, self).__init__()
+        self.conv1 = nn.Conv2d(1, 6, kernel_size=4)
+        self.conv1_bn = nn.BatchNorm2d(6)
+        self.conv2 = nn.Conv2d(6, 32, kernel_size=4)
+        self.conv2_bn = nn.BatchNorm2d(32)
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=4)
+        self.conv3_bn = nn.BatchNorm2d(64)
+        self.fc1 = nn.Linear(64*5*5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, NUM_CLASSES)
+        self.drop = nn.Dropout(dropout)
+        self.name = f"BasicCNN with batch normalization, dropout = {dropout}"
+
+    def forward(self, * x):
+        outputs = []
+        for x_i in x:
+            x = F.relu(self.conv1_bn(self.conv1(x.view(-1, 1, 14, 14))))
+            x = F.relu(self.conv2_bn(self.conv2(x)))
+            x = F.relu(self.conv3_bn(self.conv3(x)))
+            x = F.relu(self.fc1(x.view(-1, 64*5*5)))
+            x = self.drop(x)
+            x = F.relu(self.fc2(x))
+            x = self.drop(x)
+            x = self.fc3(x)
+            outputs.append(x)
+
+        output = torch.cat((outputs[0],outputs[1]), dim=1)
+        return output
 
 
 optimizer_methods = {
@@ -208,7 +240,6 @@ def train_model(model, train, train_classes, test, test_classes,
     test_loss = torch.zeros(nb_epochs)
     N_train = train.size(0)
     N_test = test.size(0)
-
     optimizer = optimizer_methods[optimizer_name](model.parameters, eta, momentum)
 
     for epoch in range(nb_epochs):
@@ -239,9 +270,13 @@ def train_model(model, train, train_classes, test, test_classes,
     return train_accuracy, test_accuracy, train_loss, test_loss
 
 
-def compute_project_accuracy(model, input1, input2, target):
+def compute_project_accuracy(model, input1, input2, target, model2 = None):
+
     output1 = model(input1)
-    output2 = model(input2)
+    if model2 == None:
+        output2 = model(input2)
+    else:
+        output2 = model2(input2)
     _, predicted_classes1 = output1.max(1)
     _, predicted_classes2 = output2.max(1)
 
@@ -250,7 +285,10 @@ def compute_project_accuracy(model, input1, input2, target):
 
     return float(nb_correct_project / target.size(0))
 
-
+def compute_output_for_non_weight_sharing(model, input):
+    output = model(input)
+    _, predicted_classes = output.max(1)
+    return predicted_classes
 
 def weights_init(m):
     if isinstance(m, nn.Conv2d):
@@ -258,7 +296,7 @@ def weights_init(m):
 
 def train_test(model, train, test, train_classes, test_classes,
             train_target, test_target, mini_batch_size, criterion,
-             nb_epochs, eta = 1e-2, momentum = 0.9, optimizer_name = 'SGD', repeats = 25):
+             nb_epochs, eta = 1e-2, momentum = 0.9, optimizer_name = 'SGD', repeats = 25, weight_sharing = True):
     all_results = []
 
     N =  int(len(train)/2)
@@ -271,21 +309,51 @@ def train_test(model, train, test, train_classes, test_classes,
     train_acc = torch.zeros(repeats, nb_epochs)
     test_acc = torch.zeros(repeats, nb_epochs)
 
+    if !weight_sharing:
+        for i in range(repeats):
+            model.apply(weights_init)
 
-    for i in range(repeats):
-        model.apply(weights_init)
+            train_acc[i], test_acc[i], train_loss[i], test_loss[i] = train_model(model, train, train_classes,
+                test, test_classes, mini_batch_size, eta, criterion, nb_epochs, momentum,
+                optimizer_name)
 
-        train_acc[i], test_acc[i], train_loss[i], test_loss[i] = train_model(model, train, train_classes,
-            test, test_classes, mini_batch_size, eta, criterion, nb_epochs, momentum,
-            optimizer_name)
+            # plot_accuracy(train_comparison[i], test_comparison[i], nb_epochs)
 
-        # plot_accuracy(train_comparison[i], test_comparison[i], nb_epochs)
+            train_comparison[i] = compute_project_accuracy(model, train[: N], train[N: ], train_target)
+            test_comparison[i] = compute_project_accuracy(model, test[: N], test[N: ], test_target)
 
-        train_comparison[i] = compute_project_accuracy(model, train[: N], train[N: ], train_target)
-        test_comparison[i] = compute_project_accuracy(model, test[: N], test[N: ], test_target)
+        all_results.append({"Model": model.name, "Optimizer": optimizer_name , "Epochs": nb_epochs, "Eta": eta, "Train Accuracy Mean": train_comparison.mean().item(),"Test Accuracy Mean": test_comparison.mean().item(), "Train Accuracy Std":  train_acc.std().item(), "Test Accuracy Std": test_acc.std().item(), "Digit acc table":     train_acc.mean(axis= 0)
+                , "test Digit Accuracy Table": test_acc.mean(axis= 0)})
 
-    all_results.append({"Model": model.name, "Optimizer": optimizer_name , "Epochs": nb_epochs, "Eta": eta, "Train Accuracy Mean": train_comparison.mean().item(),"Test Accuracy Mean": test_comparison.mean().item(), "Train Accuracy Std":  train_acc.std().item(), "Test Accuracy Std": test_acc.std().item(), "Digit acc table":     train_acc.mean(axis= 0)
-            , "test Digit Accuracy Table":     test_acc.mean(axis= 0)})
+    else:
+        for i in range(repeats):
+            model.apply(weights_init)
+
+            train_acc_img1[i], test_acc1[i], train_loss1[i], test_loss1[i] = train_model(model, train[:N], train_classes[:N],
+                test[:N], test_classes[:N], mini_batch_size, eta, criterion, nb_epochs, momentum,
+                optimizer_name)
+            model_name1 =  "{}_{}".format(model.name + '_non weight_sharing_img1', criterion.__class__.__name__ )
+            save_model_all(model, '')
+
+            model.apply(weights_init)
+
+            train_acc_img2[i], test_acc2[i], train_loss2[i], test_loss2[i] = train_model(model, train[N:], train_classes[N:],
+                test[N:], test_classes[N:], mini_batch_size, eta, criterion, nb_epochs, momentum,
+                optimizer_name)
+            model_name2 =  "{}_{}".format(model.name + '_non weight_sharing_img2', criterion.__class__.__name__ )
+            save_model_all(model, '')
+
+            model1 = load_saved_model('{}_epoch_{}.pt'.format('models/' + model_name1, nb_epochs))
+            model2 = load_saved_model('{}_epoch_{}.pt'.format('models/' + model_name2, nb_epochs))
+
+            train_comparison[i] = compute_project_accuracy(model1, train[: N], train[N: ], train_target, model2)
+            test_comparison[i] = compute_project_accuracy(model1, test[: N], test[N: ], test_target, model2)
+
+        all_results.append({"Model": model.name + 'non weight sharing', "Optimizer": optimizer_name , "Epochs": nb_epochs, "Eta": eta, "Train Accuracy Mean": train_comparison.mean().item(),"Test Accuracy Mean": test_comparison.mean().item(), "Train Accuracy Std":  train_acc.std().item(), "Test Accuracy Std": test_acc.std().item(), "Digit acc table":     train_acc.mean(axis= 0)
+                , "test Digit Accuracy Table": test_acc.mean(axis= 0)})
+
+
+
 
     return all_results
 
@@ -305,3 +373,7 @@ def save_model_all(model, model_name, epoch):
     output = open(save_path, mode="wb")
     torch.save(model.state_dict(), output)
     output.close()
+
+def load_saved_model(model, path):
+    model_out = model
+    model2.load_state_dict(torch.load(path))
