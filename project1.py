@@ -326,45 +326,40 @@ def train_test(model, train, test, train_classes, test_classes,
                 , "test Digit Accuracy Table": test_acc.mean(axis= 0).tolist(), 'train loss': train_loss.mean(axis = 0).tolist(), 'test loss': train_loss.mean(axis = 0).tolist()})
 
     else:
+        model_img2 = type(model)() # get a new instance
+
         train_loss2 = torch.zeros(repeats, nb_epochs)
         test_loss2 = torch.zeros(repeats, nb_epochs)
 
         train_acc2 = torch.zeros(repeats, nb_epochs)
         test_acc2 = torch.zeros(repeats, nb_epochs)
+
         for i in range(repeats):
             model.apply(weights_init)
+            model_img2.apply(weights_init)
 
             train_acc[i], test_acc[i], train_loss[i], test_loss[i] = train_model(model, train[:N], train_classes[:N],
-                test[:N], test_classes[:N], mini_batch_size, eta, criterion, nb_epochs, momentum,
+                test, test_classes, mini_batch_size, eta, criterion, nb_epochs, momentum,
                 optimizer_name)
-            model_name1 =  "{}_{}".format(model.name + '_non weight_sharing_img1', criterion.__class__.__name__ )
-            save_model_all(model, model_name1, nb_epochs)
 
-            model.apply(weights_init)
-
-            train_acc2[i], test_acc2[i], train_loss2[i], test_loss2[i] = train_model(model, train[N:], train_classes[N:],
-                test[N:], test_classes[N:], mini_batch_size, eta, criterion, nb_epochs, momentum,
+            train_acc2[i], test_acc2[i], train_loss2[i], test_loss2[i] = train_model(model_img2, train[N:], train_classes[N:],
+                test, test_classes, mini_batch_size, eta, criterion, nb_epochs, momentum,
                 optimizer_name)
-            model_name2 =  "{}_{}".format(model.name + '_non weight_sharing_img2', criterion.__class__.__name__ )
-            save_model_all(model, model_name2, nb_epochs)
 
-            model1 = load_saved_model(model, '{}_epoch_{}.pt'.format('models/' + model_name1, nb_epochs), True)
-            model2 = load_saved_model(model, '{}_epoch_{}.pt'.format('models/' + model_name2, nb_epochs), True)
-
-            train_comparison[i] = compute_project_accuracy(model1, train[: N], train[N: ], train_target, model2)
-            test_comparison[i] = compute_project_accuracy(model1, test[: N], test[N: ], test_target, model2)
+            train_comparison[i] = compute_project_accuracy(model, train[: N], train[N: ], train_target, model_img2)
+            test_comparison[i] = compute_project_accuracy(model, test[: N], test[N: ], test_target, model_img2)
 
         train_acc = (train_acc + train_acc2)/2
         test_acc = (test_acc + test_acc2)/2
         train_loss = (train_loss + train_loss2)/2
         test_loss = (test_loss + test_loss2)/2
 
-        all_results.append({"Model": model.name + 'non weight sharing', "Optimizer": optimizer_name , "Epochs": nb_epochs, "Eta": eta, "Train Accuracy Mean": train_comparison.mean().item(),"Test Accuracy Mean": test_comparison.mean().item(), "Train Accuracy Std":  train_acc.std().item(), "Test Accuracy Std": test_acc.std().item(), "Digit acc table":     train_acc.mean(axis= 0).tolist()
+        all_results.append({"Model": model.name + '_noWS', "Optimizer": optimizer_name , "Epochs": nb_epochs, "Eta": eta, "Train Accuracy Mean": train_comparison.mean().item(),"Test Accuracy Mean": test_comparison.mean().item(), "Train Accuracy Std":  train_acc.std().item(), "Test Accuracy Std": test_acc.std().item(), "Digit acc table":     train_acc.mean(axis= 0).tolist()
                 , "test Digit Accuracy Table": test_acc.mean(axis= 0).tolist(), 'train loss': train_loss.mean(axis = 0).tolist(), 'test loss': train_loss.mean(axis = 0).tolist()})
 
     return all_results
 
-def save_model_all(model, model_name, epoch, print_disabled = False):
+def save_model_all(model, model_name, epoch):
     """
     :param model:  nn model
     :param save_dir: save model direction
@@ -376,8 +371,7 @@ def save_model_all(model, model_name, epoch, print_disabled = False):
         os.makedirs("models/")
     save_prefix = os.path.join("models/", model_name)
     save_path = '{}_epoch_{}.pt'.format(save_prefix, epoch)
-    if not print_disabled:
-        print("save all model to {}".format(save_path))
+    print("save all model to {}".format(save_path))
     output = open(save_path, mode="wb")
     torch.save(model.state_dict(), output)
     output.close()

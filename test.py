@@ -32,17 +32,16 @@ def main():
                 for epoch in epochs:
                     all_results.append(train_test(model, train, test, train_classes,
                                 test_classes, train_target, test_target, 100,
-                                criterion, epoch, optimizer_name = optimizer))
-                    model_name =  "{}_{}".format(model.name, criterion.__class__.__name__ )
+                                criterion, epoch, optimizer_name = optimizer, weight_sharing = False))
+                    model_name =  "{}_{}_{}".format(model.name, criterion.__class__.__name__ , optimizer)
                     save_model_all(model, model_name, epoch)
                     print("Model saved.")
 
     with open('comparison_models.json', 'w') as json_file:
         json.dump(all_results, json_file)
-
     print(colored('Project 1 done', 'cyan'))
 
-    print(colored('Project 2 running', 'cyan'))
+    print(colored('Project 2 running ...', 'cyan'))
 
 
     train, train_target = generate_data(1000)
