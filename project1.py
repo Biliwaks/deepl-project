@@ -90,6 +90,8 @@ class BasicCNN_bn(nn.Module):
         self.fc1 = nn.Linear(64*5*5, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
+        self.comp1 = nn.Linear(20, 150)
+        self.comp2 = nn.Linear(150, 2)
         self.drop = nn.Dropout(dropout)
         self.name = f"BasicCNN_bn_dropout_{dropout}"
 
@@ -103,6 +105,8 @@ class BasicCNN_bn(nn.Module):
         x = self.drop(x)
         x = self.fc3(x)
         return x
+
+
 
 class LeNet4(nn.Module):
     def __init__(self, dropout = 0):
@@ -194,170 +198,157 @@ class ResNet(nn.Module):
         return x
 
 
-class BasicCNN_bn_non_weight_sharing(nn.Module):
-    def __init__(self, dropout = 0):
-        super(BasicCNN_bn, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, kernel_size=4)
-        self.conv1_bn = nn.BatchNorm2d(6)
-        self.conv2 = nn.Conv2d(6, 32, kernel_size=4)
-        self.conv2_bn = nn.BatchNorm2d(32)
-        self.conv3 = nn.Conv2d(32, 64, kernel_size=4)
-        self.conv3_bn = nn.BatchNorm2d(64)
-        self.fc1 = nn.Linear(64*5*5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, NUM_CLASSES)
+class SiameseNet_WS(nn.Module):
+    def __init__(self,  base_model, dropout = 0):
+        super(SiameseNet_WS, self).__init__()
         self.drop = nn.Dropout(dropout)
-        self.name = f"BasicCNN with batch normalization, dropout = {dropout}"
+        self.base_model = base_model
+        self.fc1 = nn.Linear(20, 150)
+        self.fc2 = nn.Linear(150, 2)
+        self.name = f"SiameseNet_WS_with_BasicCNN_bn_dropout_{dropout}"
 
-    def forward(self, * x):
-        outputs = []
-        for x_i in x:
-            x = F.relu(self.conv1_bn(self.conv1(x.view(-1, 1, 14, 14))))
-            x = F.relu(self.conv2_bn(self.conv2(x)))
-            x = F.relu(self.conv3_bn(self.conv3(x)))
-            x = F.relu(self.fc1(x.view(-1, 64*5*5)))
-            x = self.drop(x)
-            x = F.relu(self.fc2(x))
-            x = self.drop(x)
-            x = self.fc3(x)
-            outputs.append(x)
+    def forward(self, img1, img2):
+        # foward pass of input 1
+        output1 = self.base_model(img1)
+        # foward pass of input 2
+        output2 = self.base_model(img2)
 
-        output = torch.cat((outputs[0],outputs[1]), dim=1)
-        return output
+        result = torch.cat((output1,output2), dim=1, out=None)
+        result = F.relu(self.fc1(result))
+        result = self.drop(result)
+        result = self.fc2(result)
+
+        return output1, output2, result
 
 
+class SiameseNet_noWS(nn.Module):
+    def __init__(self, base_model1, base_model2, dropout = 0):
+        super(SiameseNet_noWS, self).__init__()
+        self.drop = nn.Dropout(dropout)
+        self.base_model1 = base_model1
+        self.base_model2 = base_model2
+        self.fc1 = nn.Linear(20, 150)
+        self.fc2 = nn.Linear(150, 2)
+        self.name = f"SiameseNet_noWS_with_BasicCNN_bn_dropout_{dropout}"
+
+    def forward(self, img1, img2):
+        # foward pass of input 1
+        output1 = self.base_model1(img1)
+        # foward pass of input 2
+        output2 = self.base_model2(img2)
+
+        result = torch.cat((output1,output2), dim=1, out=None)
+        result = F.relu(self.fc1(result))
+        result = self.drop(result)
+        result = self.fc2(result)
+
+        return output1, output2, result
+
+
+"""
+Dictionnary having key equal to the optimizer_name and return the optimizer from the torch library
+PARAMETERS:
+    - parameters: the parameters of the model
+    - eta: the learning rate used for training
+    - momentum: the momentum used in the train (if the optimizer does not have a
+    momentum parameter then the momentum is ignored)
+RETURN:
+    - the optim library of pytorch representing the optimizer from the key
+"""
 optimizer_methods = {
     'SGD': (lambda parameters, eta, momentum: optim.SGD(parameters(), eta, momentum = momentum)),
     'Adam': (lambda parameters, eta, momentum: optim.Adam(parameters(), eta))
 }
 
-def train_model(model, train, train_classes, test, test_classes,
-                mini_batch_size, eta, criterion, nb_epochs, momentum, optimizer_name):
 
-    train_accuracy = torch.zeros(nb_epochs)
-    test_accuracy = torch.zeros(nb_epochs)
-    train_loss = torch.zeros(nb_epochs)
-    test_loss = torch.zeros(nb_epochs)
-    N_train = train.size(0)
-    N_test = test.size(0)
+
+"""
+This method trains the model, along the run it stores the train loss and train digit accuracy for every epoch.
+It also stores the test loss and the test digit accuracy for every epoch into torch tensor.
+The digit accuracy does not represent the goal of the project but rather if the first digit
+is equal to the second digit.
+PARAMETERS:
+    - model: nn model
+    - train: training data
+    - train_classes: classes from the training data
+    - test: test data
+    - test_classes: classes from the test data
+    - mini_batch_size: the size of each batch
+    - eta: the learning rate used in the training
+    - criterion: nn loss
+    - nb_epochs: the number of epochs used in the training process
+    - momentum: momentum used for the optimizer
+    - optimizer_name: the name of the optimizer used (string)
+RETURN:
+    - train_accuracy: torch tensor representing the train digit accuracy at every epoch
+    - test_accuracy: torch tensor representing the test digit accuracy at every epoch
+    - train_loss: torch tensor representing the train loss at every epoch
+    - test_loss: torch tensor representing the test loss at every epoch
+"""
+def train_model(model, train, train_target, train_classes, test, test_target, test_classes,
+                mini_batch_size, eta, criterion, nb_epochs, momentum, optimizer_name,
+                weight_sharing, auxiliary_loss, dropout):
+
+    N_train = train[0].size(0)
+    N_test = test[0].size(0)
     optimizer = optimizer_methods[optimizer_name](model.parameters, eta, momentum)
 
+    if weight_sharing:
+        siamese_model = SiameseNet_WS(model, dropout)
+    else:
+        # Get a new instance of the model
+        model2 = type(model)()
+        siamese_model = SiameseNet_noWS(model, model2, dropout)
+
     for epoch in range(nb_epochs):
-        correct_train_digits = 0
         for batch in range(0, N_train, mini_batch_size):
-            output = model(train.narrow(0, batch, mini_batch_size))
-            _, predicted_classes = output.max(1)
-            loss = criterion(output, train_classes.narrow(0, batch, mini_batch_size))
+
+            out1, out2, results = siamese_model(train[0].narrow(0, batch, mini_batch_size), train[1].narrow(0, batch, mini_batch_size))
+
+            if auxiliary_loss:
+                loss1 = criterion(out1, train_classes[0].narrow(0, batch, mini_batch_size))
+                loss2 = criterion(out2, train_classes[1].narrow(0, batch, mini_batch_size))
+                loss_results = criterion(results, train_target.narrow(0, batch, mini_batch_size))
+
+                final_loss = loss1 + loss2 + loss_results
+            else:
+                final_loss = criterion(results, train_target.narrow(0, batch, mini_batch_size))
+
+            # Backward and optimize
             optimizer.zero_grad()
-            loss.backward()
+            final_loss.backward()
             optimizer.step()
 
-            correct_train_digits += (train_classes[batch:batch+mini_batch_size] == predicted_classes).sum().item()
+    return siamese_model
 
-        train_loss[epoch] = loss.item()
-        with torch.no_grad():
-            output = model(test)
-            loss = criterion(output, test_classes)
-            test_loss[epoch] = loss.item()
-            _, predicted_classes = output.max(1)
-            correct_test_digits = (test_classes == predicted_classes).sum().item()
+def compute_accuracy(siamese_model, input1, input2, target):
+    N = input1.size(0)
+    out1, out2, results = siamese_model(input1, input2)
+    _, predictions = results.max(1)
+    correct_predictions = (predictions == target).sum().item()
+    return correct_predictions / N
 
-
-        # compute accuracy
-        train_accuracy[epoch] = correct_train_digits / N_train
-        test_accuracy[epoch] = correct_test_digits / N_test
-
-    return train_accuracy, test_accuracy, train_loss, test_loss
-
-
-def compute_project_accuracy(model, input1, input2, target, model2 = None):
-
-    output1 = model(input1)
-    if model2 == None:
-        output2 = model(input2)
-    else:
-        output2 = model2(input2)
-    _, predicted_classes1 = output1.max(1)
-    _, predicted_classes2 = output2.max(1)
-
-    nb_correct_project = (target == (predicted_classes1 <= predicted_classes2)).sum().item()
-
-
-    return float(nb_correct_project / target.size(0))
-
-def compute_output_for_non_weight_sharing(model, input):
-    output = model(input)
-    _, predicted_classes = output.max(1)
-    return predicted_classes
-
-def weights_init(m):
-    if isinstance(m, nn.Conv2d):
-        torch.nn.init.xavier_uniform_(m.weight.data)
 
 def train_test(model, train, test, train_classes, test_classes,
             train_target, test_target, mini_batch_size, criterion,
-             nb_epochs, eta = 1e-2, momentum = 0.9, optimizer_name = 'SGD', repeats = 25, weight_sharing = True):
-    all_results = []
+             nb_epochs, eta = 1e-2, momentum = 0.9, optimizer_name = 'SGD',
+             repeats = 2, weight_sharing = True, auxiliary_loss = True, dropout = 0):
 
-    N =  int(len(train)/2)
-    train_comparison = torch.zeros(repeats,1)
-    test_comparison  = torch.zeros(repeats,1)
+    train_accuracy = torch.zeros(repeats, 1)
+    test_accuracy = torch.zeros(repeats, 1)
+    for i in range(repeats):
 
-    train_loss = torch.zeros(repeats, nb_epochs)
-    test_loss = torch.zeros(repeats, nb_epochs)
+        siamese_model = train_model(model, train, train_target, train_classes,
+            test, test_target, test_classes, mini_batch_size, eta, criterion, nb_epochs, momentum,
+            optimizer_name, weight_sharing, auxiliary_loss)
 
-    train_acc = torch.zeros(repeats, nb_epochs)
-    test_acc = torch.zeros(repeats, nb_epochs)
 
-    if weight_sharing:
-        for i in range(repeats):
-            model.apply(weights_init)
+        train_accuracy[i] = compute_accuracy(siamese_model, train[0], train[1], train_target)
+        test_accuracy[i] = compute_accuracy(siamese_model, test[0], test[1], test_target)
 
-            train_acc[i], test_acc[i], train_loss[i], test_loss[i] = train_model(model, train, train_classes,
-                test, test_classes, mini_batch_size, eta, criterion, nb_epochs, momentum,
-                optimizer_name)
+    return test_accuracy.mean(), test_accuracy.std()
 
-            # plot_accuracy(train_comparison[i], test_comparison[i], nb_epochs)
 
-            train_comparison[i] = compute_project_accuracy(model, train[: N], train[N: ], train_target)
-            test_comparison[i] = compute_project_accuracy(model, test[: N], test[N: ], test_target)
-
-        all_results.append({"Model": model.name, "Optimizer": optimizer_name , "Epochs": nb_epochs, "Eta": eta, "Train Accuracy Mean": train_comparison.mean().item(),"Test Accuracy Mean": test_comparison.mean().item(), "Train Accuracy Std":  train_acc.std().item(), "Test Accuracy Std": test_acc.std().item(), "Digit acc table":     train_acc.mean(axis= 0).tolist()
-                , "test Digit Accuracy Table": test_acc.mean(axis= 0).tolist(), 'train loss': train_loss.mean(axis = 0).tolist(), 'test loss': train_loss.mean(axis = 0).tolist()})
-
-    else:
-        model_img2 = type(model)() # get a new instance
-
-        train_loss2 = torch.zeros(repeats, nb_epochs)
-        test_loss2 = torch.zeros(repeats, nb_epochs)
-
-        train_acc2 = torch.zeros(repeats, nb_epochs)
-        test_acc2 = torch.zeros(repeats, nb_epochs)
-
-        for i in range(repeats):
-            model.apply(weights_init)
-            model_img2.apply(weights_init)
-
-            train_acc[i], test_acc[i], train_loss[i], test_loss[i] = train_model(model, train[:N], train_classes[:N],
-                test, test_classes, mini_batch_size, eta, criterion, nb_epochs, momentum,
-                optimizer_name)
-
-            train_acc2[i], test_acc2[i], train_loss2[i], test_loss2[i] = train_model(model_img2, train[N:], train_classes[N:],
-                test, test_classes, mini_batch_size, eta, criterion, nb_epochs, momentum,
-                optimizer_name)
-
-            train_comparison[i] = compute_project_accuracy(model, train[: N], train[N: ], train_target, model_img2)
-            test_comparison[i] = compute_project_accuracy(model, test[: N], test[N: ], test_target, model_img2)
-
-        train_acc = (train_acc + train_acc2)/2
-        test_acc = (test_acc + test_acc2)/2
-        train_loss = (train_loss + train_loss2)/2
-        test_loss = (test_loss + test_loss2)/2
-
-        all_results.append({"Model": model.name + '_noWS', "Optimizer": optimizer_name , "Epochs": nb_epochs, "Eta": eta, "Train Accuracy Mean": train_comparison.mean().item(),"Test Accuracy Mean": test_comparison.mean().item(), "Train Accuracy Std":  train_acc.std().item(), "Test Accuracy Std": test_acc.std().item(), "Digit acc table":     train_acc.mean(axis= 0).tolist()
-                , "test Digit Accuracy Table": test_acc.mean(axis= 0).tolist(), 'train loss': train_loss.mean(axis = 0).tolist(), 'test loss': train_loss.mean(axis = 0).tolist()})
-
-    return all_results
 
 def save_model_all(model, model_name, epoch):
     """
@@ -371,11 +362,17 @@ def save_model_all(model, model_name, epoch):
         os.makedirs("models/")
     save_prefix = os.path.join("models/", model_name)
     save_path = '{}_epoch_{}.pt'.format(save_prefix, epoch)
-    print("save all model to {}".format(save_path))
+    print("save model to {}".format(save_path))
     output = open(save_path, mode="wb")
     torch.save(model.state_dict(), output)
     output.close()
 
+"""
+Enables to load the saved model
+PARAMETERS:
+    - model: the model previously saved
+    - path: the path where the model was saved
+"""
 def load_saved_model(model, path):
     model_out = model
     model_out.load_state_dict(torch.load(path))
