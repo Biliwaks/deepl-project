@@ -245,6 +245,30 @@ class SiameseNet_noWS(nn.Module):
 
         return output1, output2, result
 
+class ModeleJo(nn.Module):
+    def __init__(self, dropout = 0):
+        super(LeNet5, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
+        self.fc1 = nn.Linear(256, 512)
+        self.fc2 = nn.Linear(512, 10)
+        self.drop = nn.Dropout(dropout)
+        self.name = f"LeNet45, dropout = {dropout}"
+
+    def forward(self, x):
+        x = self.conv1(x.view(-1, 1, 14, 14))
+        x = F.max_pool2d(x, kernel_size=2)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.max_pool2d(x, kernel_size=2)
+        x = F.relu(x)
+        x = F.relu(self.fc1(x.view(-1, 400)))
+        x = self.drop(x)
+        x = self.fc2(x)
+
+        return x
+
+
 
 """
 Dictionnary having key equal to the optimizer_name and return the optimizer from the torch library
@@ -291,6 +315,7 @@ def train_model(model, train, train_target, train_classes, test, test_target, te
 
     N_train = train[0].size(0)
     N_test = test[0].size(0)
+
     optimizer = optimizer_methods[optimizer_name](model.parameters, eta, momentum)
 
     if weight_sharing:
@@ -301,6 +326,7 @@ def train_model(model, train, train_target, train_classes, test, test_target, te
         siamese_model = SiameseNet_noWS(model, model2, dropout)
 
     for epoch in range(nb_epochs):
+        train_accuracy = 0
         for batch in range(0, N_train, mini_batch_size):
 
             out1, out2, results = siamese_model(train[0].narrow(0, batch, mini_batch_size), train[1].narrow(0, batch, mini_batch_size))
@@ -308,16 +334,40 @@ def train_model(model, train, train_target, train_classes, test, test_target, te
             # Compute loss according to the auxiliary parameters
             loss1 = criterion(out1, train_classes[0].narrow(0, batch, mini_batch_size))
             loss2 = criterion(out2, train_classes[1].narrow(0, batch, mini_batch_size))
+            loss = nn.BCELoss()
             loss_results = criterion(results, train_target.narrow(0, batch, mini_batch_size))
 
             final_loss = auxiliary_loss_param[0]*(loss1 + loss2) + auxiliary_loss_param[1]*loss_results
+
+            train_accuracy += compute_accuracy(siamese_model, train[0], train[1], train_target)
 
             # Backward and optimize
             optimizer.zero_grad()
             final_loss.backward()
             optimizer.step()
 
+        with torch.no_grad():
+            out1, out2, results = siamese_model(test[0].narrow(0, batch, mini_batch_size), test[1].narrow(0, batch, mini_batch_size))
+
+            # Compute loss according to the auxiliary parameters
+            loss1 = criterion(out1, test_classes[0].narrow(0, batch, mini_batch_size))
+            loss2 = criterion(out2, test_classes[1].narrow(0, batch, mini_batch_size))
+            loss = nn.BCELoss()
+            loss_results = criterion(results, test_target.narrow(0, batch, mini_batch_size))
+
+            final_loss = auxiliary_loss_param[0]*(loss1 + loss2) + auxiliary_loss_param[1]*loss_results
+
+            test_accuracy = compute_accuracy(siamese_model, test[0], test[1], test_target)
+
+        print('[epoch %d] train accuracy: %.3f, test accuracy: %.3f' % (epoch + 1, train_accuracy/(int(N_train/mini_batch_size)), test_accuracy))
+
     return siamese_model
+
+def one_hot_encoding(target):
+    onehot = torch.zeros(target.size(0), 2).fill_(0)
+    onehot[range(onehot.shape[0]), target]=1
+    return onehot
+
 
 def compute_accuracy(siamese_model, input1, input2, target):
     N = input1.size(0)
@@ -328,7 +378,7 @@ def compute_accuracy(siamese_model, input1, input2, target):
 
 
 def train_test(model, mini_batch_size, criterion,
-             nb_epochs, eta = 1e-2, momentum = 0.9, optimizer_name = 'SGD',
+             nb_epochs, eta = 1, momentum = 0, optimizer_name = 'SGD',
              repeats = 1, weight_sharing = True, auxiliary_loss = (1, 1), dropout = 0):
 
     train_accuracy = torch.zeros(repeats, 1)
@@ -350,6 +400,17 @@ def train_test(model, mini_batch_size, criterion,
 
 def generate_data():
     train_input, train_target, train_classes, test_input, test_target, test_classes = prologue.generate_pair_sets(1000)
+
+    #mean = train_input.mean(0)
+    #std = train_input.std(0)
+
+    #print(train_input[0][0])
+    #print(mean.size())
+
+
+    #train_input = (train_input - mean)/std
+    #test_input = (test_input - mean)/std
+    #print(train_input[0][0])
 
     train = (train_input[:, 0, :, :], train_input[:, 1, :, :])
     test = (test_input[:, 0, :, :], test_input[:, 1, :, :])
