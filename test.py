@@ -1,4 +1,3 @@
-import dlc_practical_prologue as prologue
 import json
 import torch
 import os
@@ -11,25 +10,17 @@ from project2 import *
 
 def main():
     print(colored('Project 1 running ...', 'cyan'))
-    train_input, train_target, train_classes, test_input, test_target, test_classes = prologue.generate_pair_sets(1000)
-
-    train = (train_input[:, 0, :, :], train_input[:, 1, :, :])
-    test = (test_input[:, 0, :, :], test_input[:, 1, :, :])
-
-    train_classes = (train_classes[:, 0], train_classes[:, 1])
-    test_classes = (test_classes[:, 0], test_classes[:, 1])
 
     epochs = 25
-    weight_sharings = [False, True]
-    auxiliary_losses = [False, True]
-    dropout = 0.2
+    weight_sharings = [True]
+    auxiliary_losses = [(1, 1)]
+    dropout = 0
 
     results = []
 
     for weight_sharing in weight_sharings:
         for auxiliary_loss in auxiliary_losses:
-            results.append(train_test(BasicCNN_bn(dropout), train, test, train_classes,
-                        test_classes, train_target, test_target, 100,
+            results.append(train_test(BasicCNN_bn(dropout), 100,
                         nn.CrossEntropyLoss(), epochs, dropout = dropout, optimizer_name = 'SGD',
                         weight_sharing = weight_sharing, auxiliary_loss = auxiliary_loss))
 
