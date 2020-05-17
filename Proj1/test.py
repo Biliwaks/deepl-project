@@ -6,6 +6,7 @@ import copy
 
 from torch import  nn
 from termcolor import colored
+import copy
 
 from project1 import *
 
@@ -17,7 +18,7 @@ def main():
     weight_sharings = [True, False]
     auxiliary_losses = [True, False]
     dropout_siamese = 0.25
-    repeats = 25
+    repeats = 2
 
     result_list = []
 
@@ -30,7 +31,7 @@ def main():
                     train, test, train_target, test_target, train_classes, test_classes = generate_data()
 
                     siamese_model = train_model(model_cloned, train, train_target, train_classes,
-                        test, test_target, test_classes, mini_batch_size=100, eta=1e-2, criterion=nn.CrossEntropyLoss(),
+                        test, test_target, test_classes, mini_batch_size=50, eta=1e-2, criterion=nn.CrossEntropyLoss(),
                         nb_epochs=epochs, momentum=0, optimizer_name='SGD', weight_sharing=weight_sharing,
                         auxiliary=auxiliary_loss, dropout=dropout_siamese, result_list=result_list)
 
