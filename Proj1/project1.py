@@ -156,46 +156,84 @@ class LeNet5(nn.Module):
 
         return x
 
+# class ResBlock(nn.Module):
+#     def __init__(self, dropout = 0):
+#         super(ResBlock, self).__init__()
+#         self.conv2 = nn.Conv2d(6, 32, kernel_size=4)
+#         # self.conv2_bn = nn.BatchNorm2d(32)
+#         self.conv3 = nn.Conv2d(32, 64, kernel_size=4)
+#         # self.conv3_bn = nn.BatchNorm2d(64)
+#         self.drop = nn.Dropout(dropout)
+#         self.conv2_bis = nn.Conv2d(6, 64, kernel_size=1)
+#         self.avg = nn.AvgPool2d(kernel_size = 2)
+#         self.max = nn.MaxPool2d(kernel_size = 2)
+#         # self.conv2_bis_bn = nn.BatchNorm2d(64)
+#     def forward(self, x):
+#         y = self.conv2(x)
+#         y = F.relu(y)
+#         y = self.conv3(y)
+#         conv2_bis = self.conv2_bis(x)
+#         y += F.relu(self.avg(conv2_bis)) + F.relu(self.max(conv2_bis))
+#         y = F.relu(y)
+#         # y = self.conv2_bn(self.conv2(x))
+#         # y = F.relu(y)
+#         # y = self.conv3_bn(self.conv3(y))
+#         # conv2_bis = self.conv2_bis(x)
+#         # y += F.relu(self.conv2_bis_bn(self.avg(conv2_bis))) + F.relu(self.conv2_bis_bn(self.max(conv2_bis)))
+#         # y = F.relu(y)
+#         return y
+
 class ResBlock(nn.Module):
-    def __init__(self, dropout = 0):
+    def __init__(self, nb_channels, kernel_size):
         super(ResBlock, self).__init__()
-        self.conv2 = nn.Conv2d(6, 32, kernel_size=4)
-        self.conv2_bn = nn.BatchNorm2d(32)
-        self.conv3 = nn.Conv2d(32, 64, kernel_size=4)
-        self.conv3_bn = nn.BatchNorm2d(64)
-        self.drop = nn.Dropout(dropout)
-        self.conv2_bis = nn.Conv2d(6, 64, kernel_size=1)
-        self.avg = nn.AvgPool2d(kernel_size = 2)
-        self.max = nn.MaxPool2d(kernel_size = 2)
-        self.conv2_bis_bn = nn.BatchNorm2d(64)
+        self.conv1 = nn.Conv2d(nb_channels, nb_channels, kernel_size,
+        padding = (kernel_size-1)//2)
+        self.bn1 = nn.BatchNorm2d(nb_channels)
+        self.conv2 = nn.Conv2d(nb_channels, nb_channels, kernel_size, padding = (kernel_size-1)//2)
+        self.bn2 = nn.BatchNorm2d(nb_channels)
     def forward(self, x):
-        y = self.conv2_bn(self.conv2(x))
+        y=self.conv1(x)
+        y = self.bn1(y)
         y = F.relu(y)
-        y = self.conv3_bn(self.conv3(y))
-        y += F.relu(self.conv2_bis_bn(self.avg(self.conv2_bis(x)))) + F.relu(self.conv2_bis_bn(self.max(self.conv2_bis(x))))
+        y = self.bn2(self.conv2(y))
+        y += x
         y = F.relu(y)
         return y
 
 class ResNet(nn.Module):
-    def __init__(self, dropout = 0):
+    def __init__(self, nb_channels, kernel_size, nb_blocks):
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, kernel_size=4)
-        self.conv1_bn = nn.BatchNorm2d(6)
-        self.resblock = ResBlock(dropout)
-        self.fc1 = nn.Linear(64*5*5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, NUM_CLASSES)
-        self.drop = nn.Dropout(dropout)
-        self.name = f"ResNet_dropout_{dropout}"
+        self.conv0 = nn.Conv2d(1, nb_channels, kernel_size = 1)
+        self.resblocks = nn.Sequential(
+        *(ResBlock(nb_channels, kernel_size) for _ in range(nb_blocks)))
+        self.avg = nn.AvgPool2d(kernel_size = 14)
+        self.fc = nn.Linear(nb_channels, 10)
     def forward(self, x):
-        x = F.relu(self.conv1_bn(self.conv1(x.view(-1, 1, 14, 14))))
-        x = self.resblock(x)
-        x = F.relu(self.fc1(x.view(-1, 64*5*5)))
-        x = self.drop(x)
-        x = F.relu(self.fc2(x))
-        x = self.drop(x)
-        x = self.fc3(x)
+        x = F.relu(self.conv0(x.view(-1, 1, 14,14)))
+        x = self.resblocks(x)
+        x = F.relu(self.avg(x))
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
         return x
+
+
+# class ResNet(nn.Module):
+#     def __init__(self, dropout = 0):
+#         super(ResNet, self).__init__()
+#         self.conv1 = nn.Conv2d(1, 6, kernel_size=4)
+#         self.conv1_bn = nn.BatchNorm2d(6)
+#         self.resblock = ResBlock(dropout)
+#         self.fc1 = nn.Linear(64*5*5, 120)
+#         self.fc2 = nn.Linear(120, NUM_CLASSES)
+#         self.drop = nn.Dropout(dropout)
+#         self.name = f"ResNet_dropout_{dropout}"
+#     def forward(self, x):
+#         x = F.relu(self.conv1_bn(self.conv1(x.view(-1, 1, 14, 14))))
+#         x = self.resblock(x)
+#         x = F.relu(self.fc1(x.view(-1, 64*5*5)))
+#         x = self.drop(x)
+#         x = self.fc2(x)
+#         return x
 
 class SiameseNet_WS(nn.Module):
     def __init__(self,  base_model, dropout = 0):
@@ -321,6 +359,7 @@ def train_model(model, train, train_target, train_classes, test, test_target, te
     optimizer = optimizer_methods[optimizer_name](siamese_model.parameters, eta, momentum)
 
     for epoch in range(nb_epochs):
+        print(epoch)
         train_accuracy = 0
         running_loss = 0
         for batch in range(0, N_train, mini_batch_size):
@@ -362,7 +401,7 @@ def train_model(model, train, train_target, train_classes, test, test_target, te
 
         result_list.append({"epoch": epoch, "model": model.__class__.__name__, "weight sharing": weight_sharing,
                                           "auxiliary": auxiliary,
-                                          "train accuracy": train_accuracy),
+                                          "train accuracy": train_accuracy,
                                           "train loss": running_loss,
                                           "test accuracy": test_accuracy,
                                           "test loss": test_loss.item()})
