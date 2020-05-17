@@ -250,6 +250,7 @@ class ModeleJo(nn.Module):
         self.fc1 = nn.Linear(256, 512)
         self.fc2 = nn.Linear(512, 10)
         self.drop = nn.Dropout(dropout)
+        self.sig=nn.Sigmoid()
         self.name = f"LeNet45, dropout = {dropout}"
 
     def forward(self, x):
@@ -259,8 +260,8 @@ class ModeleJo(nn.Module):
         x = self.conv2(x)
         x = F.max_pool2d(x, kernel_size=2)
         x = F.relu(x)
-        x = F.relu(self.fc1(x.view(-1, 256)))
-        x = self.fc2(x)
+        x = self.fc1(x.view(-1, 256))
+        x = self.sig(self.fc2(x))
         return x
 
 
@@ -324,8 +325,6 @@ def train_model(model, train, train_target, train_classes, test, test_target, te
         train_accuracy = 0
         running_loss = 0
         for batch in range(0, N_train, mini_batch_size):
-
-
             out1, out2, results = siamese_model(train[0].narrow(0, batch, mini_batch_size), train[1].narrow(0, batch, mini_batch_size))
 
             # Compute loss according to the auxiliary parameters
@@ -362,7 +361,7 @@ def train_model(model, train, train_target, train_classes, test, test_target, te
 
         result_list.append({"epoch": epoch, "model": model.__class__.__name__, "weight sharing": weight_sharing,
                                           "auxiliary": auxiliary,
-                                          "train accuracy": train_accuracy),
+                                          "train accuracy": train_accuracy,
                                           "train loss": running_loss,
                                           "test accuracy": test_accuracy,
                                           "test loss": test_loss.item()})
