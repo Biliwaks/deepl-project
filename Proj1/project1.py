@@ -186,8 +186,7 @@ class LeNet5(nn.Module):
 class ResBlock(nn.Module):
     def __init__(self, nb_channels, kernel_size):
         super(ResBlock, self).__init__()
-        self.conv1 = nn.Conv2d(nb_channels, nb_channels, kernel_size,
-        padding = (kernel_size-1)//2)
+        self.conv1 = nn.Conv2d(nb_channels, nb_channels, kernel_size,padding = (kernel_size -1)//2)
         self.bn1 = nn.BatchNorm2d(nb_channels)
         self.conv2 = nn.Conv2d(nb_channels, nb_channels, kernel_size, padding = (kernel_size-1)//2)
         self.bn2 = nn.BatchNorm2d(nb_channels)
@@ -203,9 +202,8 @@ class ResBlock(nn.Module):
 class ResNet(nn.Module):
     def __init__(self, nb_channels, kernel_size, nb_blocks):
         super(ResNet, self).__init__()
-        self.conv0 = nn.Conv2d(1, nb_channels, kernel_size = 1)
-        self.resblocks = nn.Sequential(
-        *(ResBlock(nb_channels, kernel_size) for _ in range(nb_blocks)))
+        self.conv0 = nn.Conv2d(1, nb_channels, kernel_size =1)
+        self.resblocks = nn.Sequential(*(ResBlock(nb_channels, kernel_size) for _ in range(nb_blocks)))
         self.avg = nn.AvgPool2d(kernel_size = 14)
         self.fc = nn.Linear(nb_channels, 10)
     def forward(self, x):

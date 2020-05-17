@@ -14,7 +14,7 @@ def main():
     print(colored('Project 1 running ...', 'cyan'))
 
     epochs = 75
-    models = [ResNet(64, 25, 4)]
+    models = [ResNet(nb_channels= 6,kernel_size= 3, nb_blocks=5)]
     weight_sharings = [True, False]
     auxiliary_losses = [True, False]
     dropout_siamese = 0.25
